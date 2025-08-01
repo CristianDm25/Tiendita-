@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="estilo_punto_venta.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('Service Worker registrado', reg))
+                    .catch(err => console.log('Error al registrar al Service Worker', err));
+            });
+        }
+    </script>
+    <title>Abarrotes - Punto de Venta</title>
+</head>
+<body>
+    <div class="header">
+        <div class="logo"><img src="tienda.png" alt="Logo" width="100" height="100"></div>
+        <div class="header-content">
+            <h1>Mi Tienda</h1>
+            <p class="slogan">¡Compra lo mejor, al mejor precio!</p>
+        </div>
+        <div class="menu">
+            <a href="formulario2.0.html">Cerrar Sesión</a>
+        </div>
+    </div>
+    <div class="submenu">
+        <a href="Inventario.html">Agregar a Inv.</a>
+        <a href="reporte_movimientos.html">Reporte de Movimientos</a>
+        <a href="#" id="openCorteModal">Corte de Caja</a>
+    </div>
+    <div class="content">
+        <div class="cart-section">
+            <h2>Carrito de Compras</h2>
+            <table id="cartTable">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio</th>
+                        <th>Cantidad</th>
+                        <th>Total</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="cartTableBody"></tbody>
+            </table>
+            <p>Total en Carrito: <span id="cartTotal">$0.00</span></p>
+        </div>
+        <div class="actions">
+            <input type="text" id="searchProduct" placeholder="Buscar producto o código de barras">
+            <button id="scanBarcode">Escanear Código de Barras</button>
+            <button id="printTicket">Imprimir Ticket</button>
+            <button id="openPaymentModal">Procesar Pago</button>
+            <button id="openCartModal">Ver Carrito Completo</button>
+        </div>
+        <div id="quantityModal" class="modal quantity-modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Seleccionar Cantidad</h2>
+                <div class="form-group">
+                    <label for="productQuantity">Cantidad:</label>
+                    <input type="number" id="productQuantity" name="productQuantity" min="1" required>
+                    <input type="hidden" id="selectedProductId">
+                    <input type="hidden" id="selectedProductDescription">
+                    <input type="hidden" id="selectedProductPrice">
+                    <input type="hidden" id="selectedProductStock">
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="confirmQuantity">Confirmar</button>
+                    <button type="button" class="close">Cancelar</button>
+                </div>
+            </div>
+        </div>
+        <div id="paymentModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Procesar Pago</h2>
+                <div class="payment-info">
+                    <p>Total a Pagar: <span id="totalToPay">$0.00</span></p>
+                    <p>Cantidad de Productos: <span id="totalCartItems">0</span></p>
+                    <div class="form-group">
+                        <label for="amountReceived">Cantidad Recibida:</label>
+                        <input type="number" id="amountReceived" name="amountReceived" step="0.01" min="0" required>
+                    </div>
+                    <p>Cambio: <span id="changeAmount">$0.00</span></p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="confirmPayment">Confirmar Pago</button>
+                    <button type="button" class="close">Cancelar</button>
+                </div>
+            </div>
+        </div>
+        <div id="saleConfirmationModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Confirmación de Venta</h2>
+                <div class="sale-info">
+                    <p>Total: <span id="saleTotal">$0.00</span></p>
+                    <p>Recibido: <span id="saleReceived">$0.00</span></p>
+                    <p>Cambio: <span id="saleChange">$0.00</span></p>
+                    <p>Cantidad de Productos: <span id="saleItems">0</span></p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="printSaleTicket">Imprimir Ticket</button>
+                    <button type="button" class="close">Cerrar</button>
+                </div>
+            </div>
+        </div>
+        <div id="corteModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Corte de Caja</h2>
+                <div class="corte-info">
+                    <p>Fecha: <span id="corteDate"></span></p>
+                    <p>Total Ventas: <span id="totalSales">$0.00</span></p>
+                    <p>Artículos Vendidos: <span id="totalItemsSold">0</span></p>
+                    <div id="soldProductsList">
+                        <h3>Productos Vendidos:</h3>
+                        <table id="soldProductsTable">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="soldProductsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="printCorte">Imprimir y Finalizar Corte</button>
+                    <button type="button" class="close">Cerrar</button>
+                </div>
+            </div>
+        </div>
+        <div id="cartModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Carrito de Compras</h2>
+                <div class="cart-info">
+                    <table id="cartTableModal">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Precio</th>
+                                <th>Cantidad</th>
+                                <th>Total</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cartTableBodyModal"></tbody>
+                    </table>
+                    <p>Total: <span id="cartTotalDisplay">$0.00</span></p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="clearCart">Vaciar Carrito</button>
+                    <button type="button" id="processCart">Procesar</button>
+                    <button type="button" class="close">Cerrar</button>
+                </div>
+            </div>
+        </div>
+        <div id="scannerModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Escanear Código de Barras</h2>
+                <div id="scannerContainer" style="width: 100%; max-width: 640px; height: 480px;">
+                    <video id="scannerVideo" autoplay playsinline style="width: 100%; height: 100%;"></video>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="stopScanner">Detener Escáner</button>
+                    <button type="button" class="close">Cerrar</button>
+                </div>
+            </div>
+        </div>
+        <table id="inventoryTable">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Descripción</th>
+                    <th>Costo</th>
+                    <th>Precio Venta</th>
+                    <th>Existencia</th>
+                    <th>Inv. Mínimo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js"></script>
+
+    <script>
+        // Firebase configuration (replace placeholders with actual values)
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_AUTH_DOMAIN",
+            databaseURL: "https://tienda-abarrotes-6a765-default-rtdb.firebaseio.com/",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_STORAGE_BUCKET",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+
+        // Initialize Firebase
+        let database;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+        } catch (error) {
+            console.error("Error initializing Firebase:", error);
+            alert("Error connecting to the database. Please verify your configuration.");
+        }
+
+        // DOM elements
+        const elements = {
+            quantityModal: document.getElementById("quantityModal"),
+            productQuantity: document.getElementById("productQuantity"),
+            selectedProductId: document.getElementById("selectedProductId"),
+            selectedProductDescription: document.getElementById("selectedProductDescription"),
+            selectedProductPrice: document.getElementById("selectedProductPrice"),
+            selectedProductStock: document.getElementById("selectedProductStock"),
+            confirmQuantityBtn: document.getElementById("confirmQuantity"),
+            paymentModal: document.getElementById("paymentModal"),
+            saleConfirmationModal: document.getElementById("saleConfirmationModal"),
+            corteModal: document.getElementById("corteModal"),
+            cartModal: document.getElementById("cartModal"),
+            scannerModal: document.getElementById("scannerModal"),
+            scanBarcodeBtn: document.getElementById("scanBarcode"),
+            stopScannerBtn: document.getElementById("stopScanner"),
+            scannerContainer: document.getElementById("scannerContainer"),
+            openPaymentModalBtn: document.getElementById("openPaymentModal"),
+            openCorteModalBtn: document.getElementById("openCorteModal"),
+            openCartModalBtn: document.getElementById("openCartModal"),
+            closeModalBtns: document.querySelectorAll(".close"),
+            confirmPaymentBtn: document.getElementById("confirmPayment"),
+            printTicketBtn: document.getElementById("printTicket"),
+            printSaleTicketBtn: document.getElementById("printSaleTicket"),
+            printCorteBtn: document.getElementById("printCorte"),
+            clearCartBtn: document.getElementById("clearCart"),
+            processCartBtn: document.getElementById("processCart"),
+            inventoryTable: document.getElementById("inventoryTable").getElementsByTagName('tbody')[0],
+            cartTableBody: document.getElementById("cartTableBody"),
+            cartTableBodyModal: document.getElementById("cartTableBodyModal"),
+            totalToPay: document.getElementById("totalToPay"),
+            totalCartItems: document.getElementById("totalCartItems"),
+            amountReceived: document.getElementById("amountReceived"),
+            changeAmount: document.getElementById("changeAmount"),
+            cartTotal: document.getElementById("cartTotal"),
+            cartTotalDisplay: document.getElementById("cartTotalDisplay"),
+            corteDate: document.getElementById("corteDate"),
+            totalSales: document.getElementById("totalSales"),
+            totalItemsSold: document.getElementById("totalItemsSold"),
+            saleTotal: document.getElementById("saleTotal"),
+            saleReceived: document.getElementById("saleReceived"),
+            saleChange: document.getElementById("saleChange"),
+            saleItems: document.getElementById("saleItems"),
+            searchProduct: document.getElementById("searchProduct"),
+            soldProductsTableBody: document.getElementById("soldProductsTableBody")
+        };
+
+        // Cart state
+        let cart = [];
+
+        // Debounce function for search
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Calculate inventory totals (for internal use if needed)
+        function calculateInventoryTotals(data) {
+            let totalCost = 0;
+            let totalItems = 0;
+            for (let productId in data) {
+                const product = data[productId];
+                totalCost += (parseFloat(product.costo) || 0) * (parseInt(product.existencia) || 0);
+                totalItems += parseInt(product.existencia) || 0;
+            }
+            return { totalCost: totalCost.toFixed(2), totalItems };
+        }
+
+        // Update cart display
+        function updateCartDisplay() {
+            const updateTable = (tbody) => {
+                tbody.innerHTML = '';
+                let total = 0;
+                let totalItems = 0;
+                cart.forEach((item, index) => {
+                    const itemTotal = (item.precioVenta || 0) * (item.quantity || 1);
+                    total += itemTotal;
+                    totalItems += item.quantity || 1;
+                    const row = tbody.insertRow();
+                    row.setAttribute('data-index', index);
+                    row.innerHTML = `
+                        <td>${item.descripcion || 'N/A'}</td>
+                        <td>$${(item.precioVenta || 0).toFixed(2)}</td>
+                        <td><input type="number" class="cart-quantity" min="1" value="${item.quantity || 1}" style="width: 60px;"></td>
+                        <td>$${itemTotal.toFixed(2)}</td>
+                        <td><button class="remove-from-cart-btn">Eliminar</button></td>
+                    `;
+                });
+                elements.cartTotal.textContent = `$${total.toFixed(2)}`;
+                elements.cartTotalDisplay.textContent = `$${total.toFixed(2)}`;
+                elements.totalToPay.textContent = `$${total.toFixed(2)}`;
+                elements.totalCartItems.textContent = totalItems;
+            };
+            updateTable(elements.cartTableBody);
+            updateTable(elements.cartTableBodyModal);
+        }
+
+        // Record sale in Firebase
+        async function recordSale(total, itemsSold, cartItems) {
+            const saleData = {
+                total,
+                itemsSold,
+                items: cartItems,
+                timestamp: new Date().toISOString()
+            };
+            await database.ref('ventas').push().set(saleData).catch(error => {
+                console.error("Error recording sale:", error);
+                alert("Error recording sale.");
+                throw error;
+            });
+        }
+
+        // Update inventory after sale
+        async function updateInventoryAfterSale(cartItems) {
+            const productosRef = database.ref('productos');
+            const snapshot = await productosRef.once('value');
+            const data = snapshot.val();
+            const updates = {};
+            let valid = true;
+            cartItems.forEach(item => {
+                if (data[item.productId]) {
+                    const newExistencia = (data[item.productId].existencia || 0) - item.quantity;
+                    if (newExistencia >= 0) {
+                        updates[`productos/${item.productId}/existencia`] = newExistencia;
+                    } else {
+                        valid = false;
+                        alert(`No hay suficiente existencia para ${item.descripcion}.`);
+                    }
+                }
+            });
+            if (valid) {
+                await database.ref().update(updates).catch(error => {
+                    console.error("Error updating inventory:", error);
+                    alert("Error updating inventory.");
+                    throw error;
+                });
+            } else {
+                throw new Error("Transaction cancelled due to insufficient inventory.");
+            }
+        }
+
+        // Print ticket
+        function printTicket(total, cartItems, totalItems) {
+            let ticketContent = `
+                <h2>Ticket de Venta</h2>
+                <p>Tienda de Abarrotes</p>
+                <p>Fecha: ${new Date().toLocaleString('es-MX')}</p>
+                <hr>
+                <table style="width:100%; border-collapse: collapse;">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio</th>
+                        <th>Cant.</th>
+                        <th>Total</th>
+                    </tr>
+            `;
+            cartItems.forEach(item => {
+                const itemTotal = (item.precioVenta || 0) * (item.quantity || 1);
+                ticketContent += `
+                    <tr>
+                        <td>${item.descripcion || 'N/A'}</td>
+                        <td>$${(item.precioVenta || 0).toFixed(2)}</td>
+                        <td>${item.quantity || 1}</td>
+                        <td>$${itemTotal.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            ticketContent += `
+                <tr>
+                    <td colspan="3"><strong>Cant. Total:</strong></td>
+                    <td><strong>${totalItems}</strong></td>
+                </tr>
+                <tr>
+                    <td colspan="3"><strong>Total:</strong></td>
+                    <td><strong>$${total.toFixed(2)}</strong></td>
+                </tr>
+            </table>
+            <p>¡Gracias por su compra!</p>
+            `;
+            const printWindow = window.open('', '_blank', 'width=800,height=600');
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>Ticket</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; margin: 20px; }
+                            table { border-collapse: collapse; width: 100%; }
+                            th, td { border: 1px solid black; padding: 8px; text-align: left; }
+                            th { background-color: #f2f2f2; }
+                            h2 { text-align: center; }
+                            p { margin: 5px 0; }
+                            hr { margin: 20px 0; }
+                        </style>
+                    </head>
+                    <body onload="window.print(); setTimeout(() => window.close(), 3000);">
+                        ${ticketContent}
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        // Generate corte de caja
+        async function generateCorte() {
+            try {
+                const [ventasSnapshot, productosSnapshot] = await Promise.all([
+                    database.ref('ventas').once('value'),
+                    database.ref('productos').once('value')
+                ]);
+                const ventas = ventasSnapshot.val() || {};
+                const productos = productosSnapshot.val() || {};
+                let totalVentas = 0;
+                let totalItemsSold = 0;
+                const soldProducts = {};
+
+                for (let saleId in ventas) {
+                    totalVentas += parseFloat(ventas[saleId].total) || 0;
+                    totalItemsSold += parseInt(ventas[saleId].itemsSold) || 0;
+                    const items = ventas[saleId].items || [];
+                    items.forEach(item => {
+                        const desc = item.descripcion || 'N/A';
+                        const qty = item.quantity || 1;
+                        const total = (item.precioVenta || 0) * qty;
+                        if (soldProducts[desc]) {
+                            soldProducts[desc].quantity += qty;
+                            soldProducts[desc].total += total;
+                        } else {
+                            soldProducts[desc] = { quantity: qty, total };
+                        }
+                    });
+                }
+
+                elements.soldProductsTableBody.innerHTML = '';
+                for (let desc in soldProducts) {
+                    const row = elements.soldProductsTableBody.insertRow();
+                    row.innerHTML = `
+                        <td>${desc}</td>
+                        <td>${soldProducts[desc].quantity}</td>
+                        <td>$${soldProducts[desc].total.toFixed(2)}</td>
+                    `;
+                }
+
+                elements.corteDate.textContent = new Date().toLocaleString('es-MX');
+                elements.totalSales.textContent = `$${totalVentas.toFixed(2)}`;
+                elements.totalItemsSold.textContent = totalItemsSold;
+                elements.corteModal.style.display = "block";
+            } catch (error) {
+                console.error("Error generating corte:", error);
+                alert("Error generating corte de caja.");
+            }
+        }
+
+        // Print and save corte
+        async function printCorte() {
+            try {
+                const soldProducts = {};
+                const ventasSnapshot = await database.ref('ventas').once('value');
+                const ventas = ventasSnapshot.val() || {};
+                let totalVentas = 0;
+                let totalItemsSold = 0;
+
+                for (let saleId in ventas) {
+                    totalVentas += parseFloat(ventas[saleId].total) || 0;
+                    totalItemsSold += parseInt(ventas[saleId].itemsSold) || 0;
+                    const items = ventas[saleId].items || [];
+                    items.forEach(item => {
+                        const desc = item.descripcion || 'N/A';
+                        const qty = item.quantity || 1;
+                        const total = (item.precioVenta || 0) * qty;
+                        if (soldProducts[desc]) {
+                            soldProducts[desc].quantity += qty;
+                            soldProducts[desc].total += total;
+                        } else {
+                            soldProducts[desc] = { quantity: qty, total };
+                        }
+                    });
+                }
+
+                const corteData = {
+                    totalVentas,
+                    totalItemsSold,
+                    soldProducts,
+                    timestamp: new Date().toISOString()
+                };
+                await database.ref('cortes').push().set(corteData).catch(error => {
+                    console.error("Error saving corte:", error);
+                    alert("Error saving corte de caja.");
+                    throw error;
+                });
+
+                let productsTable = `
+                    <h3>Productos Vendidos:</h3>
+                    <table style="width:100%; border-collapse: collapse;">
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Total</th>
+                        </tr>
+                `;
+                for (let desc in soldProducts) {
+                    productsTable += `
+                        <tr>
+                            <td>${desc}</td>
+                            <td>${soldProducts[desc].quantity}</td>
+                            <td>$${soldProducts[desc].total.toFixed(2)}</td>
+                        </tr>
+                    `;
+                }
+                productsTable += `</table>`;
+
+                const content = `
+                    <h2>Corte de Caja</h2>
+                    <p>Tienda de Abarrotes</p>
+                    <p>Fecha: ${elements.corteDate.textContent}</p>
+                    <hr>
+                    <p>Total Ventas: ${elements.totalSales.textContent}</p>
+                    <p>Artículos Vendidos: ${elements.totalItemsSold.textContent}</p>
+                    ${productsTable}
+                `;
+                const printWindow = window.open('', '_blank', 'width=800,height=600');
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>Corte de Caja</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; margin: 20px; }
+                                table { border-collapse: collapse; width: 100%; }
+                                th, td { border: 1px solid black; padding: 8px; text-align: left; }
+                                th { background-color: #f2f2f2; }
+                                h2, h3 { text-align: center; }
+                                p { margin: 10px 0; }
+                                hr { margin: 20px 0; }
+                            </style>
+                        </head>
+                        <body onload="window.print(); setTimeout(() => window.close(), 3000);">
+                            ${content}
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+
+                await database.ref('ventas').remove().catch(error => {
+                    console.error("Error resetting caja:", error);
+                    alert("Error resetting caja.");
+                    throw error;
+                });
+                elements.corteModal.style.display = "none";
+                alert("Corte de caja finalizado y caja reiniciada.");
+            } catch (error) {
+                console.error("Error printing corte:", error);
+                alert("Error printing corte de caja.");
+            }
+        }
+
+        // Search product
+        async function searchByCode() {
+            try {
+                const searchValue = elements.searchProduct.value.toLowerCase().trim();
+                elements.inventoryTable.innerHTML = '';
+                if (!searchValue) {
+                    return; // Keep table empty if no search term
+                }
+                const snapshot = await database.ref('productos').once('value');
+                const data = snapshot.val() || {};
+                for (let productId in data) {
+                    const product = data[productId];
+                    if (product.codigo.toLowerCase().includes(searchValue) || 
+                        product.descripcion.toLowerCase().includes(searchValue)) {
+                        const newRow = elements.inventoryTable.insertRow();
+                        newRow.setAttribute('data-id', productId);
+                        newRow.innerHTML = `
+                            <td>${product.codigo || 'N/A'}</td>
+                            <td>${product.descripcion || 'N/A'}</td>
+                            <td>$${(product.costo || 0).toFixed(2)}</td>
+                            <td>$${(product.precioVenta || 0).toFixed(2)}</td>
+                            <td>${product.existencia || 0}</td>
+                            <td>${product.inventarioMinimo || 0}</td>
+                            <td>
+                                <button class="edit-btn">Modificar</button>
+                                <button class="delete-btn">Eliminar</button>
+                                <button class="add-to-cart-btn">Agregar al Carrito</button>
+                            </td>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error("Error searching products:", error);
+                alert("Error searching products.");
+            }
+        }
+
+        // Add product to cart
+        function addToCart(productId, description, price, quantity, stock) {
+            const existingItem = cart.find(item => item.productId === productId);
+            if (existingItem) {
+                const newQuantity = existingItem.quantity + quantity;
+                if (newQuantity <= stock) {
+                    existingItem.quantity = newQuantity;
+                    alert(`${description} actualizado en el carrito. Cantidad: ${newQuantity}`);
+                } else {
+                    alert(`No hay suficiente existencia para ${description}. Máximo: ${stock}`);
+                    return;
+                }
+            } else {
+                if (quantity <= stock) {
+                    cart.push({ productId, descripcion: description, precioVenta: parseFloat(price) || 0, quantity });
+                    alert(`${description} agregado al carrito. Cantidad: ${quantity}`);
+                } else {
+                    alert(`No hay suficiente existencia para ${description}. Máximo: ${stock}`);
+                    return;
+                }
+            }
+            updateCartDisplay();
+            elements.quantityModal.style.display = "none";
+            elements.productQuantity.value = "";
+        }
+
+        // Start barcode scanner
+        function startBarcodeScanner() {
+            elements.scannerModal.style.display = "block";
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: elements.scannerContainer,
+                    constraints: {
+                        width: 640,
+                        height: 480,
+                        facingMode: "environment"
+                    }
+                },
+                decoder: {
+                    readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "upc_reader"]
+                }
+            }, function(err) {
+                if (err) {
+                    console.error("Error initializing Quagga:", err);
+                    alert("Error starting barcode scanner. Please ensure camera access is allowed.");
+                    elements.scannerModal.style.display = "none";
+                    return;
+                }
+                Quagga.start();
+            });
+
+            Quagga.onDetected(async function(result) {
+                const code = result.codeResult.code;
+                if (code) {
+                    elements.searchProduct.value = code;
+                    await handleEnterSearch(code);
+                    Quagga.stop();
+                    elements.scannerModal.style.display = "none";
+                }
+            });
+        }
+
+        // Handle Enter key search
+        async function handleEnterSearch(codigo) {
+            try {
+                const snapshot = await database.ref('productos').orderByChild('codigo').equalTo(codigo).once('value');
+                const data = snapshot.val();
+                if (data) {
+                    const productId = Object.keys(data)[0];
+                    const product = data[productId];
+                    if (product.existencia > 0) {
+                        elements.selectedProductId.value = productId;
+                        elements.selectedProductDescription.value = product.descripcion || 'N/A';
+                        elements.selectedProductPrice.value = parseFloat(product.precioVenta) || 0;
+                        elements.selectedProductStock.value = parseInt(product.existencia) || 0;
+                        elements.productQuantity.value = "1";
+                        elements.quantityModal.style.display = "block";
+                        elements.searchProduct.value = '';
+                    } else {
+                        alert("No hay existencia disponible para este producto.");
+                    }
+                } else {
+                    alert("Producto no encontrado.");
+                }
+            } catch (error) {
+                console.error("Error searching product:", error);
+                alert("Error searching product.");
+            }
+        }
+
+        // Event Listeners
+        elements.openPaymentModalBtn.onclick = () => {
+            if (cart.length === 0) {
+                alert("El carrito está vacío.");
+                return;
+            }
+            updateCartDisplay();
+            elements.amountReceived.value = "";
+            elements.changeAmount.textContent = "$0.00";
+            elements.paymentModal.style.display = "block";
+        };
+
+        elements.openCorteModalBtn.onclick = () => generateCorte();
+
+        elements.openCartModalBtn.onclick = () => {
+            updateCartDisplay();
+            elements.cartModal.style.display = "block";
+        };
+
+        elements.scanBarcodeBtn.onclick = () => startBarcodeScanner();
+
+        elements.stopScannerBtn.onclick = () => {
+            Quagga.stop();
+            elements.scannerModal.style.display = "none";
+        };
+
+        elements.processCartBtn.onclick = () => {
+            elements.cartModal.style.display = "none";
+            elements.openPaymentModalBtn.click();
+        };
+
+        elements.clearCartBtn.onclick = () => {
+            if (confirm("¿Seguro que desea vaciar el carrito?")) {
+                cart = [];
+                updateCartDisplay();
+                elements.cartModal.style.display = "none";
+            }
+        };
+
+        elements.printTicketBtn.onclick = () => {
+            const total = parseFloat(elements.cartTotal.textContent.replace('$', '')) || 0;
+            const totalItems = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            if (total > 0 && cart.length > 0) {
+                printTicket(total, cart, totalItems);
+            } else {
+                alert("No hay productos en el carrito.");
+            }
+        };
+
+        elements.printSaleTicketBtn.onclick = () => {
+            const total = parseFloat(elements.saleTotal.textContent.replace('$', '')) || 0;
+            const totalItems = parseInt(elements.saleItems.textContent) || 0;
+            printTicket(total, cart, totalItems);
+            elements.saleConfirmationModal.style.display = "none";
+            cart = [];
+            updateCartDisplay();
+        };
+
+        elements.printCorteBtn.onclick = () => printCorte();
+
+        elements.closeModalBtns.forEach(btn => {
+            btn.onclick = () => {
+                elements.quantityModal.style.display = "none";
+                elements.paymentModal.style.display = "none";
+                elements.saleConfirmationModal.style.display = "none";
+                elements.corteModal.style.display = "none";
+                elements.cartModal.style.display = "none";
+                elements.scannerModal.style.display = "none";
+                elements.productQuantity.value = "";
+                Quagga.stop();
+            }
+        });
+
+        window.onclick = event => {
+            if ([elements.quantityModal, elements.paymentModal, elements.saleConfirmationModal, elements.corteModal, elements.cartModal, elements.scannerModal].includes(event.target)) {
+                event.target.style.display = "none";
+                elements.productQuantity.value = "";
+                Quagga.stop();
+            }
+        };
+
+        elements.confirmPaymentBtn.onclick = async () => {
+            const total = parseFloat(elements.totalToPay.textContent.replace('$', '')) || 0;
+            const received = parseFloat(elements.amountReceived.value) || 0;
+            const totalItems = parseInt(elements.totalCartItems.textContent) || 0;
+            if (isNaN(received) || received < total) {
+                alert("Ingrese una cantidad válida mayor o igual al total.");
+                return;
+            }
+            const change = received - total;
+            elements.changeAmount.textContent = `$${change.toFixed(2)}`;
+            if (cart.length > 0) {
+                try {
+                    const itemsSold = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+                    await Promise.all([recordSale(total, itemsSold, cart), updateInventoryAfterSale(cart)]);
+                    elements.paymentModal.style.display = "none";
+                    elements.saleTotal.textContent = `$${total.toFixed(2)}`;
+                    elements.saleReceived.textContent = `$${received.toFixed(2)}`;
+                    elements.saleChange.textContent = `$${change.toFixed(2)}`;
+                    elements.saleItems.textContent = totalItems;
+                    elements.saleConfirmationModal.style.display = "block";
+                } catch (error) {
+                    console.error("Error processing payment:", error);
+                    alert("Error processing payment.");
+                }
+            } else {
+                alert("El carrito está vacío.");
+            }
+        };
+
+        elements.confirmQuantityBtn.onclick = () => {
+            const quantity = parseInt(elements.productQuantity.value);
+            const productId = elements.selectedProductId.value;
+            const description = elements.selectedProductDescription.value;
+            const price = parseFloat(elements.selectedProductPrice.value);
+            const stock = parseInt(elements.selectedProductStock.value);
+            if (isNaN(quantity) || quantity <= 0) {
+                alert("Ingrese una cantidad válida.");
+                return;
+            }
+            addToCart(productId, description, price, quantity, stock);
+        };
+
+        elements.inventoryTable.addEventListener('click', async event => {
+            const productId = event.target.closest('tr')?.getAttribute('data-id');
+            if (!productId) return;
+            if (event.target.classList.contains('delete-btn')) {
+                if (confirm("¿Seguro que desea eliminar este producto?")) {
+                    try {
+                        await database.ref('productos/' + productId).remove();
+                        alert("Producto eliminado exitosamente.");
+                        searchByCode(); // Refresh search results
+                    } catch (error) {
+                        console.error("Error deleting product:", error);
+                        alert("Error deleting product.");
+                    }
+                }
+            } else if (event.target.classList.contains('edit-btn')) {
+                alert("La edición de productos no está disponible en esta versión.");
+            } else if (event.target.classList.contains('add-to-cart-btn')) {
+                try {
+                    const snapshot = await database.ref('productos/' + productId).once('value');
+                    const product = snapshot.val();
+                    if (product.existencia > 0) {
+                        elements.selectedProductId.value = productId;
+                        elements.selectedProductDescription.value = product.descripcion || 'N/A';
+                        elements.selectedProductPrice.value = parseFloat(product.precioVenta) || 0;
+                        elements.selectedProductStock.value = parseInt(product.existencia) || 0;
+                        elements.productQuantity.value = "1";
+                        elements.quantityModal.style.display = "block";
+                    } else {
+                        alert("No hay existencia disponible para este producto.");
+                    }
+                } catch (error) {
+                    console.error("Error loading product:", error);
+                    alert("Error loading product.");
+                }
+            }
+        });
+
+        const handleCartActions = async (event, tbodyId) => {
+            const index = parseInt(event.target.closest('tr')?.getAttribute('data-index'));
+            if (isNaN(index)) return;
+            if (event.target.classList.contains('remove-from-cart-btn')) {
+                cart.splice(index, 1);
+                updateCartDisplay();
+            } else if (event.target.classList.contains('cart-quantity')) {
+                const newQuantity = parseInt(event.target.value);
+                const productId = cart[index].productId;
+                try {
+                    const snapshot = await database.ref('productos/' + productId).once('value');
+                    const product = snapshot.val();
+                    if (newQuantity > 0 && newQuantity <= (product.existencia || 0)) {
+                        cart[index].quantity = newQuantity;
+                    } else {
+                        alert(`Cantidad no válida para ${cart[index].descripcion}. Máximo: ${product.existencia}`);
+                        event.target.value = cart[index].quantity;
+                    }
+                    updateCartDisplay();
+                } catch (error) {
+                    console.error("Error updating quantity:", error);
+                    alert("Error updating quantity.");
+                }
+            }
+        };
+
+        elements.cartTableBody.addEventListener('click', e => handleCartActions(e, 'cartTableBody'));
+        elements.cartTableBody.addEventListener('change', e => handleCartActions(e, 'cartTableBody'));
+        elements.cartTableBodyModal.addEventListener('click', e => handleCartActions(e, 'cartTableBodyModal'));
+        elements.cartTableBodyModal.addEventListener('change', e => handleCartActions(e, 'cartTableBodyModal'));
+
+        elements.searchProduct.oninput = debounce(searchByCode, 300);
+
+        elements.searchProduct.addEventListener('keypress', async event => {
+            if (event.key === 'Enter') {
+                const codigo = elements.searchProduct.value.trim();
+                if (codigo) {
+                    await handleEnterSearch(codigo);
+                }
+            }
+        });
+
+        // Initialize
+        window.onload = () => {
+            updateCartDisplay();
+            elements.inventoryTable.innerHTML = '';
+        };
+    </script>
+</body>
+</html>

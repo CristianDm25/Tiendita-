@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="estilo_punto_venta.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('Service Worker registrado', reg))
+                    .catch(err => console.log('Error al registrar al Service Worker', err));
+            });
+        }
+    </script>
+    <title>Abarrotes</title>
+</head>
+<body>
+    <div class="header">
+        <div class="logo"><img src="tienda.png" alt="Logo" width="100" height="100"></div>
+        <div class="header-content">
+            <h1>Mi Tienda</h1>
+            <p class="slogan">¡Compra lo mejor, al mejor precio!</p>
+        </div>
+        <div class="menu">
+            <a href="formulario2.0.html">Cerrar Sesión</a>
+        </div>
+    </div>
+    <div class="submenu">
+        <a href="Inventario.html">Agregar a Inv.</a>
+        <a href="reporte_movimientos.html">Reporte de Movimientos</a>
+        <a href="punto_venta.html">Puntos de ventas</a>
+    </div>
+    <div class="content">
+        <h2>REPORTE DE INVENTARIO</h2>
+        <div class="summary">
+            <p>Costo del Inventario: <span id="totalInventoryCost">$0.00</span></p>
+            <p>Cantidad de productos en Inventario: <span id="totalInventoryItems">0</span></p>
+        </div>
+        <div class="actions">
+            <button id="openModal">Agregar Nuevo Producto</button>
+            <button id="clearInventory">Vaciar Inventario</button>
+            <input type="text" id="searchCode" placeholder="Buscar por código">
+        </div>
+        <div id="productModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2 id="modalTitle">Agregar Producto</h2>
+                <form id="productForm">
+                    <input type="hidden" id="productId" name="productId">
+                    <div class="form-group">
+                        <label for="codigo">Código:</label>
+                        <input type="text" id="codigo" name="codigo" required>
+                        <button type="button" id="scanBarcode">Escanear Código</button>
+                    </div>
+                    <div class="form-group">
+                        <label for="descripcion">Descripción del Producto:</label>
+                        <input type="text" id="descripcion" name="descripcion" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="costo">Costo:</label>
+                        <input type="number" id="costo" name="costo" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="precioVenta">Precio Venta:</label>
+                        <input type="number" id="precioVenta" name="precioVenta" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="existencia">Existencia:</label>
+                        <input type="number" id="existencia" name="existencia" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="inventarioMinimo">Inventario Mínimo:</label>
+                        <input type="number" id="inventarioMinimo" name="inventarioMinimo" min="0" required>
+                    </div>
+                    <div id="scanner-container" style="display: none;">
+                        <video id="barcodeScanner" autoplay></video>
+                        <button type="button" id="stopScanner">Detener Escáner</button>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" id="submitProduct">Agregar</button>
+                        <button type="button" class="close">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <table id="inventoryTable">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Descripción del Producto</th>
+                    <th>Costo</th>
+                    <th>Precio Venta</th>
+                    <th>Existencia</th>
+                    <th>Inv. Mínimo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
+
+    <script>
+        // Firebase configuration (replace placeholders with actual values)
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_AUTH_DOMAIN",
+            databaseURL: "https://tienda-abarrotes-6a765-default-rtdb.firebaseio.com/",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_STORAGE_BUCKET",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+
+        // Initialize Firebase
+        let database;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+        } catch (error) {
+            console.error("Error initializing Firebase:", error);
+            alert("Error connecting to the database. Please verify your configuration.");
+        }
+
+        // DOM elements
+        const productModal = document.getElementById("productModal");
+        const openModalBtn = document.getElementById("openModal");
+        const closeModalBtns = document.querySelectorAll(".close");
+        const submitProductBtn = document.getElementById("submitProduct");
+        const clearInventoryBtn = document.getElementById("clearInventory");
+        const productForm = document.getElementById("productForm");
+        const inventoryTable = document.getElementById("inventoryTable").getElementsByTagName('tbody')[0];
+        const totalInventoryCost = document.getElementById("totalInventoryCost");
+        const totalInventoryItems = document.getElementById("totalInventoryItems");
+        const modalTitle = document.getElementById("modalTitle");
+        const searchCodeInput = document.getElementById("searchCode");
+        const scanBarcodeBtn = document.getElementById("scanBarcode");
+        const stopScannerBtn = document.getElementById("stopScanner");
+        const scannerContainer = document.getElementById("scanner-container");
+
+        // Barcode scanner logic
+        let scanning = false;
+
+        function startBarcodeScanner() {
+            scannerContainer.style.display = "block";
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#barcodeScanner'),
+                    constraints: { facingMode: "environment" }
+                },
+                decoder: { readers: ["code_128_reader", "ean_reader", "ean_8_reader", "upc_reader"] }
+            }, function(err) {
+                if (err) {
+                    console.error("Error initializing Quagga:", err);
+                    alert("Error starting barcode scanner.");
+                    return;
+                }
+                Quagga.start();
+                scanning = true;
+            });
+
+            Quagga.onDetected(function(data) {
+                const code = data.codeResult.code;
+                document.getElementById("codigo").value = code;
+                stopBarcodeScanner();
+                alert("Código escaneado: " + code);
+            });
+        }
+
+        function stopBarcodeScanner() {
+            if (scanning) {
+                Quagga.stop();
+                scannerContainer.style.display = "none";
+                scanning = false;
+            }
+        }
+
+        scanBarcodeBtn.onclick = startBarcodeScanner;
+        stopScannerBtn.onclick = stopBarcodeScanner;
+
+        // Close modal and stop scanner
+        closeModalBtns.forEach(btn => {
+            btn.onclick = () => {
+                productModal.style.display = "none";
+                productForm.reset();
+                stopBarcodeScanner();
+            };
+        });
+
+        window.onclick = function(event) {
+            if (event.target === productModal) {
+                productModal.style.display = "none";
+                productForm.reset();
+                stopBarcodeScanner();
+            }
+        };
+
+        // Calculate inventory totals
+        function calculateInventoryTotals(data) {
+            let totalCost = 0;
+            let totalItems = 0;
+            for (let productId in data) {
+                const product = data[productId];
+                totalCost += (parseFloat(product.costo) || 0) * (parseInt(product.existencia) || 0);
+                totalItems += parseInt(product.existencia) || 0;
+            }
+            totalInventoryCost.textContent = `$${totalCost.toFixed(2)}`;
+            totalInventoryItems.textContent = totalItems;
+            return { totalCost, totalItems };
+        }
+
+        // Render inventory table
+        function renderInventory(data) {
+            inventoryTable.innerHTML = '';
+            const totals = calculateInventoryTotals(data);
+            for (let productId in data) {
+                const product = data[productId];
+                const newRow = inventoryTable.insertRow();
+                newRow.setAttribute('data-id', productId);
+                newRow.innerHTML = `
+                    <td>${product.codigo || 'N/A'}</td>
+                    <td>${product.descripcion || 'N/A'}</td>
+                    <td>$${(parseFloat(product.costo) || 0).toFixed(2)}</td>
+                    <td>$${(parseFloat(product.precioVenta) || 0).toFixed(2)}</td>
+                    <td>${parseInt(product.existencia) || 0}</td>
+                    <td>${parseInt(product.inventarioMinimo) || 0}</td>
+                    <td>
+                        <button class="edit-btn">Modificar</button>
+                        <button class="delete-btn">Eliminar</button>
+                    </td>
+                `;
+            }
+        }
+
+        // Add or update product in Firebase
+        function addProductToFirebase(codigo, descripcion, costo, precioVenta, existencia, inventarioMinimo, productId = null) {
+            const productData = {
+                codigo: codigo || '',
+                descripcion: descripcion || '',
+                costo: parseFloat(costo) || 0,
+                precioVenta: parseFloat(precioVenta) || 0,
+                existencia: parseInt(existencia) || 0,
+                inventarioMinimo: parseInt(inventarioMinimo) || 0
+            };
+            try {
+                if (productId) {
+                    return database.ref('productos/' + productId).update(productData)
+                        .then(() => alert("Producto modificado exitosamente."))
+                        .catch(error => {
+                            console.error("Error updating product:", error);
+                            alert("Error updating product.");
+                        });
+                } else {
+                    return database.ref('productos').push().set(productData)
+                        .then(() => alert("Producto agregado exitosamente."))
+                        .catch(error => {
+                            console.error("Error adding product:", error);
+                            alert("Error adding product.");
+                        });
+                }
+            } catch (error) {
+                console.error("Error in Firebase operation:", error);
+                alert("Error processing product.");
+            }
+        }
+
+        // Clear inventory (visual table only)
+        function clearInventory() {
+            if (confirm("¿Está seguro de vaciar el inventario? Esto limpiará la tabla visualmente sin afectar la base de datos.")) {
+                inventoryTable.innerHTML = '';
+                totalInventoryCost.textContent = '$0.00';
+                totalInventoryItems.textContent = '0';
+                alert("Tabla de inventario limpiada correctamente.");
+            }
+        }
+
+        // Debounced search function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        async function searchByCode() {
+            try {
+                const searchValue = searchCodeInput.value.toLowerCase().trim();
+                inventoryTable.innerHTML = '';
+                totalInventoryCost.textContent = '$0.00';
+                totalInventoryItems.textContent = '0';
+                
+                if (!searchValue) {
+                    return; // Keep table empty if no search term
+                }
+
+                const snapshot = await database.ref('productos').once('value');
+                const data = snapshot.val() || {};
+                const filteredData = {};
+                for (let productId in data) {
+                    const product = data[productId];
+                    if (product.codigo.toLowerCase().includes(searchValue) || 
+                        product.descripcion.toLowerCase().includes(searchValue)) {
+                        filteredData[productId] = product;
+                    }
+                }
+                renderInventory(filteredData);
+            } catch (error) {
+                console.error("Error searching products:", error);
+                alert("Error searching products.");
+            }
+        }
+
+        // Initialize inventory on page load (keep table empty)
+        function initializeInventory() {
+            inventoryTable.innerHTML = '';
+            totalInventoryCost.textContent = '$0.00';
+            totalInventoryItems.textContent = '0';
+        }
+
+        // Event listeners
+        openModalBtn.onclick = () => {
+            productForm.reset();
+            document.getElementById("productId").value = "";
+            modalTitle.textContent = "Agregar Producto";
+            submitProductBtn.textContent = "Agregar";
+            productModal.style.display = "block";
+        };
+
+        submitProductBtn.onclick = async () => {
+            const productId = document.getElementById("productId").value;
+            const codigo = document.getElementById("codigo").value;
+            const descripcion = document.getElementById("descripcion").value;
+            const costo = document.getElementById("costo").value;
+            const precioVenta = document.getElementById("precioVenta").value;
+            const existencia = document.getElementById("existencia").value;
+            const inventarioMinimo = document.getElementById("inventarioMinimo").value;
+
+            if (!codigo || !descripcion || costo < 0 || precioVenta < 0 || existencia < 0 || inventarioMinimo < 0) {
+                alert("Por favor, complete todos los campos con valores válidos.");
+                return;
+            }
+
+            await addProductToFirebase(codigo, descripcion, costo, precioVenta, existencia, inventarioMinimo, productId);
+            productModal.style.display = "none";
+            productForm.reset();
+            searchByCode(); // Refresh search results after adding/updating
+        };
+
+        inventoryTable.addEventListener('click', async (event) => {
+            const productId = event.target.closest('tr')?.getAttribute('data-id');
+            if (!productId) return;
+            if (event.target.classList.contains('delete-btn')) {
+                if (confirm("¿Está seguro de eliminar este producto?")) {
+                    try {
+                        await database.ref('productos/' + productId).remove();
+                        alert("Producto eliminado exitosamente.");
+                        searchByCode(); // Refresh search results after deletion
+                    } catch (error) {
+                        console.error("Error deleting product:", error);
+                        alert("Error deleting product.");
+                    }
+                }
+            } else if (event.target.classList.contains('edit-btn')) {
+                try {
+                    const snapshot = await database.ref('productos/' + productId).once('value');
+                    const product = snapshot.val();
+                    document.getElementById("productId").value = productId;
+                    document.getElementById("codigo").value = product.codigo || '';
+                    document.getElementById("descripcion").value = product.descripcion || '';
+                    document.getElementById("costo").value = product.costo || 0;
+                    document.getElementById("precioVenta").value = product.precioVenta || 0;
+                    document.getElementById("existencia").value = product.existencia || 0;
+                    document.getElementById("inventarioMinimo").value = product.inventarioMinimo || 0;
+                    modalTitle.textContent = "Modificar Producto";
+                    submitProductBtn.textContent = "Modificar";
+                    productModal.style.display = "block";
+                } catch (error) {
+                    console.error("Error loading product for edit:", error);
+                    alert("Error loading product for edit.");
+                }
+            }
+        });
+
+        clearInventoryBtn.onclick = clearInventory;
+        searchCodeInput.oninput = debounce(searchByCode, 300);
+
+        // Initialize
+        window.onload = initializeInventory;
+    </script>
+</body>
+</html>

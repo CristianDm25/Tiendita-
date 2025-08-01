@@ -1,0 +1,19 @@
+{
+    "name": "Tiendita",
+    "short_name": "Tienda cristian",
+    "star_url": "formulario2.0.html",
+    "display": "standalone",
+    "background_color": "#3A3A3A",
+    "theme_color": "#4C3552",
+    "icons": [{
+            "src": "192x192(1).jpg",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "kombini tradicional bajo el sol (1).png",
+            "sizes": "512x192",
+            "type": "image/png"
+        }
+    ]
+}

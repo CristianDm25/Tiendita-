@@ -1,0 +1,637 @@
+/* Estilos globales */
+:root {
+    --primary: #4F46E5;
+    --secondary: #7C3AED;
+    --accent: #10B981;
+    --background: #F9FAFB;
+    --text: #1F2937;
+    --border: #E5E7EB;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --success: #059669;
+    --error: #DC2626;
+    --warning: #F59E0B;
+    --info: #3B82F6;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: var(--text);
+    background-color: var(--background);
+    font-size: 16px;
+}
+
+/* Encabezado */
+.header {
+    background-color: #ffffff;
+    padding: 1.5rem 2rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    transition: background-color 0.3s ease;
+}
+
+.header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 1rem;
+    background: linear-gradient(to right, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.slogan {
+    font-size: 0.875rem;
+    color: #6B7280;
+    font-style: italic;
+    margin: 0.25rem 1rem;
+}
+
+/* Logo */
+.logo img {
+    height: 4rem;
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.logo img:hover {
+    transform: scale(1.1) rotate(5deg);
+    filter: brightness(1.1);
+}
+
+/* Menú principal */
+.menu {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.5rem;
+}
+
+.menu a {
+    background-color: var(--border);
+    padding: 0.75rem 1.5rem;
+    text-decoration: none;
+    color: var(--text);
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.menu a::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: var(--accent);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+}
+
+.menu a:hover {
+    background-color: var(--primary);
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+.menu a:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+/* Submenú */
+.submenu {
+    background: linear-gradient(135deg, var(--secondary), var(--primary));
+    padding: 1rem 2rem;
+    display: flex;
+    gap: 1rem;
+    box-shadow: var(--shadow);
+}
+
+.submenu a {
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.submenu a:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Botón de escanear código de barras */
+#scanBarcode {
+    margin-left: 10px;
+    padding: 8px 16px;
+    background-color: var(--success);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+#scanBarcode::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+#scanBarcode:hover {
+    background-color: var(--success);
+    transform: translateY(-2px);
+}
+
+#scanBarcode:active::after {
+    width: 200px;
+    height: 200px;
+}
+
+#scanBarcode:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.3);
+}
+
+/* Contenido principal */
+.content {
+    padding: 2rem;
+    max-width: 1280px;
+    margin: 0 auto;
+    background-color: #ffffff;
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow);
+}
+
+.content h2 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.content h2::after {
+    content: '';
+    position: absolute;
+    bottom: -0.5rem;
+    left: 0;
+    width: 3rem;
+    height: 4px;
+    background: linear-gradient(to right, var(--primary), var(--accent));
+    border-radius: 2px;
+}
+
+/* Resumen */
+.summary {
+    background-color: #ffffff;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.summary:hover {
+    transform: translateY(-4px);
+}
+
+.summary p {
+    margin: 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.summary span {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* Tabla */
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 1.5rem;
+    background-color: #ffffff;
+    box-shadow: var(--shadow);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+th, td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    transition: background-color 0.3s ease;
+}
+
+th {
+    background: linear-gradient(to bottom, #F3F4F6, #E5E7EB);
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #374151;
+}
+
+tr:hover td {
+    background-color: rgba(79, 70, 229, 0.05);
+}
+
+/* Acciones */
+.actions {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.actions button, .actions input {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.actions button {
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    color: #ffffff;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.actions button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.actions button:hover {
+    transform: translateY(-2px);
+}
+
+.actions button:active::after {
+    width: 200px;
+    height: 200px;
+}
+
+.actions input {
+    border: 1px solid var(--border);
+    background-color: #ffffff;
+    color: var(--text);
+}
+
+.actions input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* Botones de edición y eliminación */
+.edit-btn, .delete-btn, .add-to-cart-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.edit-btn {
+    background: linear-gradient(45deg, var(--accent), #34D399);
+    color: #ffffff;
+    margin-right: 0.5rem;
+}
+
+.edit-btn:hover {
+    transform: translateY(-2px);
+}
+
+.delete-btn {
+    background: linear-gradient(45deg, var(--error), #F87171);
+    color: #ffffff;
+    margin-right: 0.5rem;
+}
+
+.delete-btn:hover {
+    transform: translateY(-2px);
+}
+
+.add-to-cart-btn {
+    background: linear-gradient(45deg, var(--info), #60A5FA);
+    color: #ffffff;
+    position: relative;
+    overflow: hidden;
+}
+
+.add-to-cart-btn:hover {
+    transform: translateY(-2px);
+}
+
+.add-to-cart-btn:active {
+    transform: scale(0.95);
+}
+
+.add-to-cart-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.add-to-cart-btn:active::after {
+    width: 200px;
+    height: 200px;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.7);
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+    background-color: #ffffff;
+    margin: 10% auto;
+    padding: 2rem;
+    border-radius: 0.75rem;
+    width: 90%;
+    max-width: 36rem;
+    box-shadow: var(--shadow);
+    animation: slideIn 0.3s ease;
+    position: relative;
+}
+
+/* Modal de cantidad */
+.quantity-modal .modal-content {
+    max-width: 24rem;
+}
+
+.quantity-modal .form-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.quantity-modal input[type="number"] {
+    width: 80px;
+    text-align: center;
+    border-radius: 0.375rem;
+}
+
+/* Botón de cerrar modal */
+.close {
+    color: #6B7280;
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.close:hover {
+    color: var(--text);
+    transform: rotate(90deg);
+}
+
+/* Grupo de formulario */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text);
+    background-color: #ffffff;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* Acciones del formulario */
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.form-actions button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.form-actions button#submitProduct, .form-actions button#confirmQuantity {
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    color: #ffffff;
+}
+
+.form-actions button#submitProduct:hover, .form-actions button#confirmQuantity:hover {
+    transform: translateY(-2px);
+}
+
+.form-actions button.close {
+    background: linear-gradient(45deg, #6B7280, #4B5563);
+    color: #ffffff;
+}
+
+.form-actions button.close:hover {
+    transform: translateY(-2px);
+}
+
+/* Estilos para el modal de pago */
+#paymentModal .modal-content {
+    max-width: 32rem;
+}
+
+.payment-info {
+    margin-bottom: 1.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.payment-info span {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Media queries para responsividad */
+@media (max-width: 1024px) {
+    .content {
+        padding: 1.5rem;
+    }
+
+    .header {
+        padding: 1rem;
+    }
+
+    .submenu {
+        padding: 0.75rem 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .menu, .submenu {
+        flex-direction: column;
+        width: 100%;
+        align-items: center;
+    }
+
+    .menu a, .submenu a {
+        width: 100%;
+        text-align: center;
+    }
+
+    .content {
+        padding: 1rem;
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: 15% auto;
+        padding: 1.5rem;
+    }
+
+    .actions {
+        flex-direction: column;
+    }
+
+    .actions button, .actions input {
+        width: 100%;
+        text-align: center;
+    }
+
+    table {
+        font-size: 0.75rem;
+    }
+
+    th, td {
+        padding: 0.5rem;
+    }
+}
+
+@media (max-width: 600px) {
+    #scanBarcode {
+        margin-left: 5px;
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .header h1 {
+        font-size: 1.25rem;
+    }
+
+    .logo img {
+        height: 3rem;
+    }
+
+    .content h2 {
+        font-size: 1.5rem;
+    }
+
+    .form-group input {
+        padding: 0.5rem;
+    }
+
+    .form-actions button {
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+    }
+}

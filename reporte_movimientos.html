@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="estilo_punto_venta.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('Service Worker registrado', reg))
+                    .catch(err => console.log('Error al registrar al Service Worker', err));
+            });
+        }
+    </script>
+    <title>Reporte de Movimientos</title>
+</head>
+<body>
+    <div class="header">
+        <div class="logo"><img src="tienda.png" alt="Logo" width="100" height="100"></div>
+        <div class="header-content">
+            <h1>Mi Tienda</h1>
+            <p class="slogan">¡Compra lo mejor, al mejor precio!</p>
+        </div>
+        <div class="menu">
+            <a href="formulario2.0.html">Cerrar Sesión</a>
+        </div>
+    </div>
+    <div class="submenu">
+        <a href="Inventario.html">Agregar a Inv.</a>
+        <a href="reporte_movimientos.html">Reporte de Movimientos</a>
+        <a href="punto_venta.html">Puntos de Ventas</a>
+    </div>
+    <div class="content">
+        <h2>REPORTE DE MOVIMIENTOS</h2>
+        <div class="actions">
+            <div class="filter-group">
+                <label for="startDate">Fecha Inicio:</label>
+                <input type="date" id="startDate">
+                <label for="endDate">Fecha Fin:</label>
+                <input type="date" id="endDate">
+                <button id="loadMovements">Cargar Movimientos</button>
+            </div>
+            <button id="printReport">Imprimir Reporte</button>
+            <button id="clearReport">Vaciar Tabla</button>
+        </div>
+        <table id="movementsTable">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Tipo de Movimiento</th>
+                    <th>Detalles</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js"></script>
+
+    <script>
+        // Firebase configuration (replace placeholders with actual values)
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_AUTH_DOMAIN",
+            databaseURL: "https://tienda-abarrotes-6a765-default-rtdb.firebaseio.com/",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_STORAGE_BUCKET",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+
+        // Initialize Firebase
+        let database;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+        } catch (error) {
+            console.error("Error initializing Firebase:", error);
+            alert("Error connecting to the database. Please verify your configuration.");
+        }
+
+        // DOM elements
+        const elements = {
+            movementsTable: document.getElementById("movementsTable").getElementsByTagName('tbody')[0],
+            printReportBtn: document.getElementById("printReport"),
+            clearReportBtn: document.getElementById("clearReport"),
+            loadMovementsBtn: document.getElementById("loadMovements"),
+            startDate: document.getElementById("startDate"),
+            endDate: document.getElementById("endDate")
+        };
+
+        // Function to load movements from Firebase with optional date filtering
+        async function loadMovements() {
+            try {
+                elements.movementsTable.innerHTML = ''; // Clear table
+                const startDate = elements.startDate.value ? new Date(elements.startDate.value).toISOString() : null;
+                const endDate = elements.endDate.value ? new Date(new Date(elements.endDate.value).setHours(23, 59, 59, 999)).toISOString() : null;
+
+                // Load ventas
+                const ventasSnapshot = await database.ref('ventas').once('value');
+                const ventas = ventasSnapshot.val() || {};
+                for (let ventaId in ventas) {
+                    const venta = ventas[ventaId];
+                    if (startDate && endDate && (venta.timestamp < startDate || venta.timestamp > endDate)) continue;
+                    const newRow = elements.movementsTable.insertRow();
+                    newRow.insertCell(0).innerHTML = new Date(venta.timestamp || Date.now()).toLocaleString('es-MX');
+                    newRow.insertCell(1).innerHTML = "Venta";
+                    let detalles = `Total: $${(venta.total || 0).toFixed(2)}, Artículos Vendidos: ${venta.itemsSold || 0}`;
+                    if (venta.items && Array.isArray(venta.items)) {
+                        detalles += `<br>Productos:<ul>`;
+                        venta.items.forEach(p => {
+                            const cantidad = p.quantity || 1;
+                            const subtotal = (p.precioVenta || 0) * cantidad;
+                            detalles += `<li>${p.descripcion || 'N/A'} - Cantidad: ${cantidad}, Precio Unitario: $${(p.precioVenta || 0).toFixed(2)}, Subtotal: $${subtotal.toFixed(2)}</li>`;
+                        });
+                        detalles += `</ul>`;
+                    }
+                    newRow.insertCell(2).innerHTML = detalles;
+                }
+
+                // Load cortes
+                const cortesSnapshot = await database.ref('cortes').once('value');
+                const cortes = cortesSnapshot.val() || {};
+                for (let corteId in cortes) {
+                    const corte = cortes[corteId];
+                    if (startDate && endDate && (corte.timestamp < startDate || corte.timestamp > endDate)) continue;
+                    const newRow = elements.movementsTable.insertRow();
+                    newRow.insertCell(0).innerHTML = new Date(corte.timestamp || Date.now()).toLocaleString('es-MX');
+                    newRow.insertCell(1).innerHTML = "Corte de Caja";
+                    let detalles = `Total Ventas: $${(corte.totalVentas || 0).toFixed(2)}, Artículos Vendidos: ${corte.totalItemsSold || 0}`;
+                    if (corte.soldProducts && typeof corte.soldProducts === 'object') {
+                        detalles += `<br>Productos Vendidos:<ul>`;
+                        for (let desc in corte.soldProducts) {
+                            const product = corte.soldProducts[desc];
+                            detalles += `<li>${desc} - Cantidad: ${product.quantity}, Total: $${product.total.toFixed(2)}</li>`;
+                        }
+                        detalles += `</ul>`;
+                    }
+                    newRow.insertCell(2).innerHTML = detalles;
+                }
+
+                // Load productos
+                const productosSnapshot = await database.ref('productos').once('value');
+                const productos = productosSnapshot.val() || {};
+                for (let productId in productos) {
+                    const product = productos[productId];
+                    const newRow = elements.movementsTable.insertRow();
+                    newRow.insertCell(0).innerHTML = new Date().toLocaleString('es-MX'); // No timestamp in productos, use current time
+                    newRow.insertCell(1).innerHTML = "Producto Agregado/Modificado";
+                    newRow.insertCell(2).innerHTML = `Código: ${product.codigo || 'N/A'}, Descripción: ${product.descripcion || 'N/A'}, Costo: $${(product.costo || 0).toFixed(2)}, Precio Venta: $${(product.precioVenta || 0).toFixed(2)}, Existencia: ${product.existencia || 0}, Inv. Mínimo: ${product.inventarioMinimo || 0}`;
+                }
+            } catch (error) {
+                console.error("Error loading movements:", error);
+                alert("Error loading movements.");
+            }
+        }
+
+        // Function to clear the report table (visual only)
+        function clearReport() {
+            if (confirm("¿Estás seguro de que deseas vaciar la tabla de movimientos? Esto solo limpia la visualización, no los datos en la base de datos.")) {
+                elements.movementsTable.innerHTML = '';
+                alert("Tabla de movimientos limpiada correctamente.");
+            }
+        }
+
+        // Function to print the report
+        function printReport() {
+            const rows = elements.movementsTable.getElementsByTagName('tr');
+            if (rows.length === 0) {
+                alert("No hay movimientos para imprimir.");
+                return;
+            }
+            let reportContent = `
+                <h2>Reporte de Movimientos</h2>
+                <p>Tienda de Abarrotes</p>
+                <p>Fecha: ${new Date().toLocaleString('es-MX')}</p>
+                <hr>
+                <table style="width:100%; border-collapse: collapse;">
+                    <tr>
+                        <th style="border: 1px solid black; padding: 8px;">Fecha</th>
+                        <th style="border: 1px solid black; padding: 8px;">Tipo de Movimiento</th>
+                        <th style="border: 1px solid black; padding: 8px;">Detalles</th>
+                    </tr>
+            `;
+            for (let row of rows) {
+                const cells = row.getElementsByTagName('td');
+                if (cells.length > 0) {
+                    reportContent += `
+                        <tr>
+                            <td style="border: 1px solid black; padding: 8px;">${cells[0].innerHTML}</td>
+                            <td style="border: 1px solid black; padding: 8px;">${cells[1].innerHTML}</td>
+                            <td style="border: 1px solid black; padding: 8px;">${cells[2].innerHTML}</td>
+                        </tr>
+                    `;
+                }
+            }
+            reportContent += `
+                </table>
+            `;
+            const printWindow = window.open('', '_blank', 'width=800,height=600');
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>Reporte de Movimientos</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; margin: 20px; }
+                            table { border-collapse: collapse; width: 100%; }
+                            th, td { border: 1px solid black; padding: 8px; text-align: left; }
+                            th { background-color: #f2f2f2; }
+                            h2 { text-align: center; }
+                            p { margin: 5px 0; }
+                            hr { margin: 20px 0; }
+                            ul { margin: 0; padding-left: 20px; }
+                        </style>
+                    </head>
+                    <body onload="window.print(); setTimeout(() => window.close(), 3000);">
+                        ${reportContent}
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        // Event Listeners
+        elements.loadMovementsBtn.onclick = () => loadMovements();
+        elements.printReportBtn.onclick = () => printReport();
+        elements.clearReportBtn.onclick = () => clearReport();
+
+        // Initialize
+        window.onload = () => {
+            elements.movementsTable.innerHTML = ''; // Keep table empty on load
+            const today = new Date().toISOString().split('T')[0];
+            elements.endDate.value = today;
+            elements.startDate.value = today;
+        };
+    </script>
+</body>
+</html>
