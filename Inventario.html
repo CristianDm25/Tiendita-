@@ -32,7 +32,7 @@
     <div class="submenu">
         <a href="Inventario.html">Agregar a Inv.</a>
         <a href="reporte_movimientos.html">Reporte de Movimientos</a>
-        <a href="punto_venta.html">Puntos de ventas</a>
+        <a href="punto_venta.html">Puntos de Ventas</a>
     </div>
     <div class="content">
         <h2>REPORTE DE INVENTARIO</h2>
@@ -51,6 +51,13 @@
                 <h2 id="modalTitle">Agregar Producto</h2>
                 <form id="productForm">
                     <input type="hidden" id="productId" name="productId">
+                    <div class="form-group">
+                        <label for="scanType">Tipo de Escaneo:</label>
+                        <select id="scanType">
+                            <option value="barcode">Código de Barras</option>
+                            <option value="qrcode">Código QR</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label for="codigo">Código:</label>
                         <input type="text" id="codigo" name="codigo" required>
@@ -76,8 +83,9 @@
                         <label for="inventarioMinimo">Inventario Mínimo:</label>
                         <input type="number" id="inventarioMinimo" name="inventarioMinimo" min="0" required>
                     </div>
-                    <div id="scanner-container" style="display: none;">
-                        <video id="barcodeScanner" autoplay></video>
+                    <div id="scanner-container" style="display: none; width: 100%; max-width: 640px; height: 480px;">
+                        <video id="barcodeScanner" autoplay playsinline style="width: 100%; height: 100%; display: none;"></video>
+                        <canvas id="scannerCanvas" style="width: 100%; height: 100%; display: none;"></canvas>
                         <button type="button" id="stopScanner">Detener Escáner</button>
                     </div>
                     <div class="form-actions">
@@ -106,6 +114,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js"></script>
     <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
+    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
     <script>
         // Firebase configuration (replace placeholders with actual values)
@@ -130,79 +139,49 @@
         }
 
         // DOM elements
-        const productModal = document.getElementById("productModal");
-        const openModalBtn = document.getElementById("openModal");
-        const closeModalBtns = document.querySelectorAll(".close");
-        const submitProductBtn = document.getElementById("submitProduct");
-        const clearInventoryBtn = document.getElementById("clearInventory");
-        const productForm = document.getElementById("productForm");
-        const inventoryTable = document.getElementById("inventoryTable").getElementsByTagName('tbody')[0];
-        const totalInventoryCost = document.getElementById("totalInventoryCost");
-        const totalInventoryItems = document.getElementById("totalInventoryItems");
-        const modalTitle = document.getElementById("modalTitle");
-        const searchCodeInput = document.getElementById("searchCode");
-        const scanBarcodeBtn = document.getElementById("scanBarcode");
-        const stopScannerBtn = document.getElementById("stopScanner");
-        const scannerContainer = document.getElementById("scanner-container");
-
-        // Barcode scanner logic
-        let scanning = false;
-
-        function startBarcodeScanner() {
-            scannerContainer.style.display = "block";
-            Quagga.init({
-                inputStream: {
-                    name: "Live",
-                    type: "LiveStream",
-                    target: document.querySelector('#barcodeScanner'),
-                    constraints: { facingMode: "environment" }
-                },
-                decoder: { readers: ["code_128_reader", "ean_reader", "ean_8_reader", "upc_reader"] }
-            }, function(err) {
-                if (err) {
-                    console.error("Error initializing Quagga:", err);
-                    alert("Error starting barcode scanner.");
-                    return;
-                }
-                Quagga.start();
-                scanning = true;
-            });
-
-            Quagga.onDetected(function(data) {
-                const code = data.codeResult.code;
-                document.getElementById("codigo").value = code;
-                stopBarcodeScanner();
-                alert("Código escaneado: " + code);
-            });
-        }
-
-        function stopBarcodeScanner() {
-            if (scanning) {
-                Quagga.stop();
-                scannerContainer.style.display = "none";
-                scanning = false;
-            }
-        }
-
-        scanBarcodeBtn.onclick = startBarcodeScanner;
-        stopScannerBtn.onclick = stopBarcodeScanner;
-
-        // Close modal and stop scanner
-        closeModalBtns.forEach(btn => {
-            btn.onclick = () => {
-                productModal.style.display = "none";
-                productForm.reset();
-                stopBarcodeScanner();
-            };
-        });
-
-        window.onclick = function(event) {
-            if (event.target === productModal) {
-                productModal.style.display = "none";
-                productForm.reset();
-                stopBarcodeScanner();
-            }
+        const elements = {
+            productModal: document.getElementById("productModal"),
+            openModalBtn: document.getElementById("openModal"),
+            closeModalBtns: document.querySelectorAll(".close"),
+            submitProductBtn: document.getElementById("submitProduct"),
+            clearInventoryBtn: document.getElementById("clearInventory"),
+            productForm: document.getElementById("productForm"),
+            inventoryTable: document.getElementById("inventoryTable").getElementsByTagName('tbody')[0],
+            totalInventoryCost: document.getElementById("totalInventoryCost"),
+            totalInventoryItems: document.getElementById("totalInventoryItems"),
+            modalTitle: document.getElementById("modalTitle"),
+            searchCodeInput: document.getElementById("searchCode"),
+            scanBarcodeBtn: document.getElementById("scanBarcode"),
+            stopScannerBtn: document.getElementById("stopScanner"),
+            scannerContainer: document.getElementById("scanner-container"),
+            barcodeScanner: document.getElementById("barcodeScanner"),
+            scannerCanvas: document.getElementById("scannerCanvas"),
+            scanType: document.getElementById("scanType"),
+            codigoInput: document.getElementById("codigo"),
+            descripcionInput: document.getElementById("descripcion"),
+            costoInput: document.getElementById("costo"),
+            precioVentaInput: document.getElementById("precioVenta"),
+            existenciaInput: document.getElementById("existencia"),
+            inventarioMinimoInput: document.getElementById("inventarioMinimo"),
+            productIdInput: document.getElementById("productId")
         };
+
+        // Scanner state
+        let scanning = false;
+        let qrCodeInterval = null;
+
+        // Debounce function for search
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
 
         // Calculate inventory totals
         function calculateInventoryTotals(data) {
@@ -213,18 +192,18 @@
                 totalCost += (parseFloat(product.costo) || 0) * (parseInt(product.existencia) || 0);
                 totalItems += parseInt(product.existencia) || 0;
             }
-            totalInventoryCost.textContent = `$${totalCost.toFixed(2)}`;
-            totalInventoryItems.textContent = totalItems;
+            elements.totalInventoryCost.textContent = `$${totalCost.toFixed(2)}`;
+            elements.totalInventoryItems.textContent = totalItems;
             return { totalCost, totalItems };
         }
 
         // Render inventory table
         function renderInventory(data) {
-            inventoryTable.innerHTML = '';
-            const totals = calculateInventoryTotals(data);
+            elements.inventoryTable.innerHTML = '';
+            calculateInventoryTotals(data);
             for (let productId in data) {
                 const product = data[productId];
-                const newRow = inventoryTable.insertRow();
+                const newRow = elements.inventoryTable.insertRow();
                 newRow.setAttribute('data-id', productId);
                 newRow.innerHTML = `
                     <td>${product.codigo || 'N/A'}</td>
@@ -242,7 +221,7 @@
         }
 
         // Add or update product in Firebase
-        function addProductToFirebase(codigo, descripcion, costo, precioVenta, existencia, inventarioMinimo, productId = null) {
+        async function addProductToFirebase(codigo, descripcion, costo, precioVenta, existencia, inventarioMinimo, productId = null) {
             const productData = {
                 codigo: codigo || '',
                 descripcion: descripcion || '',
@@ -253,55 +232,36 @@
             };
             try {
                 if (productId) {
-                    return database.ref('productos/' + productId).update(productData)
-                        .then(() => alert("Producto modificado exitosamente."))
-                        .catch(error => {
-                            console.error("Error updating product:", error);
-                            alert("Error updating product.");
-                        });
+                    await database.ref('productos/' + productId).update(productData);
+                    alert("Producto modificado exitosamente.");
                 } else {
-                    return database.ref('productos').push().set(productData)
-                        .then(() => alert("Producto agregado exitosamente."))
-                        .catch(error => {
-                            console.error("Error adding product:", error);
-                            alert("Error adding product.");
-                        });
+                    await database.ref('productos').push().set(productData);
+                    alert("Producto agregado exitosamente.");
                 }
             } catch (error) {
                 console.error("Error in Firebase operation:", error);
                 alert("Error processing product.");
+                throw error;
             }
         }
 
         // Clear inventory (visual table only)
         function clearInventory() {
             if (confirm("¿Está seguro de vaciar el inventario? Esto limpiará la tabla visualmente sin afectar la base de datos.")) {
-                inventoryTable.innerHTML = '';
-                totalInventoryCost.textContent = '$0.00';
-                totalInventoryItems.textContent = '0';
+                elements.inventoryTable.innerHTML = '';
+                elements.totalInventoryCost.textContent = '$0.00';
+                elements.totalInventoryItems.textContent = '0';
                 alert("Tabla de inventario limpiada correctamente.");
             }
         }
 
-        // Debounced search function
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
-
+        // Search by code
         async function searchByCode() {
             try {
-                const searchValue = searchCodeInput.value.toLowerCase().trim();
-                inventoryTable.innerHTML = '';
-                totalInventoryCost.textContent = '$0.00';
-                totalInventoryItems.textContent = '0';
+                const searchValue = elements.searchCodeInput.value.toLowerCase().trim();
+                elements.inventoryTable.innerHTML = '';
+                elements.totalInventoryCost.textContent = '$0.00';
+                elements.totalInventoryItems.textContent = '0';
                 
                 if (!searchValue) {
                     return; // Keep table empty if no search term
@@ -324,30 +284,137 @@
             }
         }
 
-        // Initialize inventory on page load (keep table empty)
+        // Start barcode scanner
+        function startBarcodeScanner() {
+            if (scanning) return;
+            scanning = true;
+            elements.scannerContainer.style.display = "block";
+            elements.barcodeScanner.style.display = "block";
+            elements.scannerCanvas.style.display = "none";
+
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => {
+                    elements.barcodeScanner.srcObject = stream;
+                    Quagga.init({
+                        inputStream: {
+                            name: "Live",
+                            type: "LiveStream",
+                            target: elements.barcodeScanner,
+                            constraints: {
+                                width: { ideal: 640 },
+                                height: { ideal: 480 },
+                                facingMode: "environment"
+                            }
+                        },
+                        decoder: {
+                            readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "upc_reader"]
+                        }
+                    }, function(err) {
+                        if (err) {
+                            console.error("Error initializing Quagga:", err);
+                            alert("Error starting barcode scanner. Please ensure camera access is allowed.");
+                            stopScanner();
+                            return;
+                        }
+                        Quagga.start();
+                    });
+
+                    Quagga.onDetected(function(data) {
+                        const code = data.codeResult.code;
+                        elements.codigoInput.value = code;
+                        stopScanner();
+                        alert("Código de barras escaneado: " + code);
+                    });
+                })
+                .catch(err => {
+                    console.error("Error accessing camera:", err);
+                    alert("Unable to access camera. Please ensure camera permissions are granted and the site is served over HTTPS.");
+                    stopScanner();
+                });
+        }
+
+        // Start QR code scanner
+        function startQRCodeScanner() {
+            if (scanning) return;
+            scanning = true;
+            elements.scannerContainer.style.display = "block";
+            elements.barcodeScanner.style.display = "block";
+            elements.scannerCanvas.style.display = "block";
+
+            const canvas = elements.scannerCanvas;
+            const context = canvas.getContext('2d');
+            canvas.width = 640;
+            canvas.height = 480;
+
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => {
+                    elements.barcodeScanner.srcObject = stream;
+                    elements.barcodeScanner.play();
+
+                    qrCodeInterval = setInterval(() => {
+                        context.drawImage(elements.barcodeScanner, 0, 0, canvas.width, canvas.height);
+                        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                            inversionAttempts: "dontInvert"
+                        });
+
+                        if (code) {
+                            elements.codigoInput.value = code.data;
+                            stopScanner();
+                            alert("Código QR escaneado: " + code.data);
+                        }
+                    }, 100);
+                })
+                .catch(err => {
+                    console.error("Error accessing camera:", err);
+                    alert("Unable to access camera. Please ensure camera permissions are granted and the site is served over HTTPS.");
+                    stopScanner();
+                });
+        }
+
+        // Stop scanner
+        function stopScanner() {
+            if (!scanning) return;
+            scanning = false;
+            if (elements.barcodeScanner.srcObject) {
+                elements.barcodeScanner.srcObject.getTracks().forEach(track => track.stop());
+                elements.barcodeScanner.srcObject = null;
+            }
+            if (qrCodeInterval) {
+                clearInterval(qrCodeInterval);
+                qrCodeInterval = null;
+            }
+            Quagga.stop();
+            elements.scannerContainer.style.display = "none";
+            elements.barcodeScanner.style.display = "none";
+            elements.scannerCanvas.style.display = "none";
+        }
+
+        // Initialize inventory on page load
         function initializeInventory() {
-            inventoryTable.innerHTML = '';
-            totalInventoryCost.textContent = '$0.00';
-            totalInventoryItems.textContent = '0';
+            elements.inventoryTable.innerHTML = '';
+            elements.totalInventoryCost.textContent = '$0.00';
+            elements.totalInventoryItems.textContent = '0';
         }
 
         // Event listeners
-        openModalBtn.onclick = () => {
-            productForm.reset();
-            document.getElementById("productId").value = "";
-            modalTitle.textContent = "Agregar Producto";
-            submitProductBtn.textContent = "Agregar";
-            productModal.style.display = "block";
+        elements.openModalBtn.onclick = () => {
+            elements.productForm.reset();
+            elements.productIdInput.value = "";
+            elements.modalTitle.textContent = "Agregar Producto";
+            elements.submitProductBtn.textContent = "Agregar";
+            elements.productModal.style.display = "block";
+            elements.scanType.value = "barcode";
         };
 
-        submitProductBtn.onclick = async () => {
-            const productId = document.getElementById("productId").value;
-            const codigo = document.getElementById("codigo").value;
-            const descripcion = document.getElementById("descripcion").value;
-            const costo = document.getElementById("costo").value;
-            const precioVenta = document.getElementById("precioVenta").value;
-            const existencia = document.getElementById("existencia").value;
-            const inventarioMinimo = document.getElementById("inventarioMinimo").value;
+        elements.submitProductBtn.onclick = async () => {
+            const productId = elements.productIdInput.value;
+            const codigo = elements.codigoInput.value;
+            const descripcion = elements.descripcionInput.value;
+            const costo = elements.costoInput.value;
+            const precioVenta = elements.precioVentaInput.value;
+            const existencia = elements.existenciaInput.value;
+            const inventarioMinimo = elements.inventarioMinimoInput.value;
 
             if (!codigo || !descripcion || costo < 0 || precioVenta < 0 || existencia < 0 || inventarioMinimo < 0) {
                 alert("Por favor, complete todos los campos con valores válidos.");
@@ -355,12 +422,12 @@
             }
 
             await addProductToFirebase(codigo, descripcion, costo, precioVenta, existencia, inventarioMinimo, productId);
-            productModal.style.display = "none";
-            productForm.reset();
-            searchByCode(); // Refresh search results after adding/updating
+            elements.productModal.style.display = "none";
+            elements.productForm.reset();
+            searchByCode();
         };
 
-        inventoryTable.addEventListener('click', async (event) => {
+        elements.inventoryTable.addEventListener('click', async (event) => {
             const productId = event.target.closest('tr')?.getAttribute('data-id');
             if (!productId) return;
             if (event.target.classList.contains('delete-btn')) {
@@ -368,7 +435,7 @@
                     try {
                         await database.ref('productos/' + productId).remove();
                         alert("Producto eliminado exitosamente.");
-                        searchByCode(); // Refresh search results after deletion
+                        searchByCode();
                     } catch (error) {
                         console.error("Error deleting product:", error);
                         alert("Error deleting product.");
@@ -378,16 +445,16 @@
                 try {
                     const snapshot = await database.ref('productos/' + productId).once('value');
                     const product = snapshot.val();
-                    document.getElementById("productId").value = productId;
-                    document.getElementById("codigo").value = product.codigo || '';
-                    document.getElementById("descripcion").value = product.descripcion || '';
-                    document.getElementById("costo").value = product.costo || 0;
-                    document.getElementById("precioVenta").value = product.precioVenta || 0;
-                    document.getElementById("existencia").value = product.existencia || 0;
-                    document.getElementById("inventarioMinimo").value = product.inventarioMinimo || 0;
-                    modalTitle.textContent = "Modificar Producto";
-                    submitProductBtn.textContent = "Modificar";
-                    productModal.style.display = "block";
+                    elements.productIdInput.value = productId;
+                    elements.codigoInput.value = product.codigo || '';
+                    elements.descripcionInput.value = product.descripcion || '';
+                    elements.costoInput.value = product.costo || 0;
+                    elements.precioVentaInput.value = product.precioVenta || 0;
+                    elements.existenciaInput.value = product.existencia || 0;
+                    elements.inventarioMinimoInput.value = product.inventarioMinimo || 0;
+                    elements.modalTitle.textContent = "Modificar Producto";
+                    elements.submitProductBtn.textContent = "Modificar";
+                    elements.productModal.style.display = "block";
                 } catch (error) {
                     console.error("Error loading product for edit:", error);
                     alert("Error loading product for edit.");
@@ -395,8 +462,46 @@
             }
         });
 
-        clearInventoryBtn.onclick = clearInventory;
-        searchCodeInput.oninput = debounce(searchByCode, 300);
+        elements.closeModalBtns.forEach(btn => {
+            btn.onclick = () => {
+                elements.productModal.style.display = "none";
+                elements.productForm.reset();
+                stopScanner();
+            };
+        });
+
+        window.onclick = function(event) {
+            if (event.target === elements.productModal) {
+                elements.productModal.style.display = "none";
+                elements.productForm.reset();
+                stopScanner();
+            }
+        };
+
+        elements.scanBarcodeBtn.onclick = () => {
+            const scanType = elements.scanType.value;
+            if (scanType === "barcode") {
+                startBarcodeScanner();
+            } else {
+                startQRCodeScanner();
+            }
+        };
+
+        elements.stopScannerBtn.onclick = () => stopScanner();
+
+        elements.scanType.onchange = () => {
+            if (scanning) {
+                stopScanner();
+                if (elements.scanType.value === "barcode") {
+                    startBarcodeScanner();
+                } else {
+                    startQRCodeScanner();
+                }
+            }
+        };
+
+        elements.clearInventoryBtn.onclick = clearInventory;
+        elements.searchCodeInput.oninput = debounce(searchByCode, 300);
 
         // Initialize
         window.onload = initializeInventory;
