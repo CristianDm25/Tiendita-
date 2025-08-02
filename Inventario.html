@@ -117,20 +117,7 @@
     <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
     <script>
-         // Deshabilitar el menú contextual
-        document.addEventListener('contextmenu', e => e.preventDefault());
-
-        // Deshabilitar teclas de desarrollo (F12, Ctrl+Shift+I/J/C, Ctrl+U)
-        document.addEventListener('keydown', e => {
-            if (e.key === 'F12' || 
-                (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key)) || 
-                (e.ctrlKey && ['u', 'U'].includes(e.key))) {
-                e.preventDefault();
-                e.stopPropagation();
-                alert('Acción no permitida: Las herramientas de desarrollo y la visualización de código están deshabilitadas.');
-            }
-        });
-
+         
         // Firebase configuration (replace placeholders with actual values)
         const firebaseConfig = {
             apiKey: "TU_API_KEY",
@@ -519,7 +506,23 @@
 
         // Initialize
         window.onload = initializeInventory;
+
+        // Deshabilitar el menú contextual
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        // Deshabilitar teclas de desarrollo (F12, Ctrl+Shift+I/J/C, Ctrl+U)
+        document.addEventListener('keydown', e => {
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key)) || 
+                (e.ctrlKey && ['u', 'U'].includes(e.key))) {
+                e.preventDefault();
+                e.stopPropagation();
+                alert('Acción no permitida: Las herramientas de desarrollo y la visualización de código están deshabilitadas.');
+            }
+        });
+
     </script>
 </body>
 </html>
+
 
