@@ -199,7 +199,19 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js"></script>
 
     <script>
-        
+         // Deshabilitar el menú contextual
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        // Deshabilitar teclas de desarrollo (F12, Ctrl+Shift+I/J/C, Ctrl+U)
+        document.addEventListener('keydown', e => {
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key)) || 
+                (e.ctrlKey && ['u', 'U'].includes(e.key))) {
+                e.preventDefault();
+                e.stopPropagation();
+                alert('Acción no permitida: Las herramientas de desarrollo y la visualización de código están deshabilitadas.');
+            }
+        });
 
         // Firebase configuration (replace placeholders with actual values)
         const firebaseConfig = {
@@ -919,21 +931,10 @@
             updateCartDisplay();
             elements.inventoryTable.innerHTML = '';
         };
-         // Deshabilitar el menú contextual
-        document.addEventListener('contextmenu', e => e.preventDefault());
-
-        // Deshabilitar teclas de desarrollo (F12, Ctrl+Shift+I/J/C, Ctrl+U)
-        document.addEventListener('keydown', e => {
-            if (e.key === 'F12' || 
-                (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key)) || 
-                (e.ctrlKey && ['u', 'U'].includes(e.key))) {
-                e.preventDefault();
-                e.stopPropagation();
-                alert('Acción no permitida: Las herramientas de desarrollo y la visualización de código están deshabilitadas.');
-            }
-        });
+        
     </script>
 </body>
 
 </html>
+
 
